@@ -1,0 +1,169 @@
+# Sentinel default config — Phase 1 (virtual portfolio, no broker)
+#
+# All values here are safe to edit. Restart the dashboard or rerun `sentinel scan`
+# to pick up changes. Config is validated by sentinel.config.schema on load; a bad
+# value causes a clear startup error rather than a silent misbehavior.
+
+app:
+  mode: virtual            # virtual | paper | live  (only "virtual" is implemented in Phase 1)
+  timezone: America/New_York
+  initial_virtual_equity: 100000.00
+
+storage:
+  db_path: ./data/sentinel.db
+  wal: true
+
+logging:
+  level: INFO
+  json_file: ./logs/sentinel.jsonl
+  console: true
+
+watchlist:
+  # Default seed — edit via `sentinel watch` or the UI.
+  symbols:
+    - SPY
+    - QQQ
+    - AAPL
+    - MSFT
+    - NVDA
+    - GOOGL
+    - AMZN
+    - META
+    - TSLA
+    - AMD
+    - MRKR
+    - ATOS
+    - ADMA
+
+data:
+  source: yfinance         # only yfinance in Phase 1
+  bar_timeframe: 5m        # 1m | 5m | 15m | 1h | 1d
+  history_days: 60         # how much history to cache per ticker
+
+regime:
+  spy_vwap_window: 200
+  spy_daily_decline_pct: 0.015
+  qqq_daily_decline_pct: 0.015
+  vix_absolute: 28
+  vix_daily_rise_pct: 0.15
+  block_macro_events: true   # FOMC / CPI / NFP
+  macro_event_cooldown_min: 30
+
+signals:
+  enabled:
+    - gap_and_go
+    - mean_reversion
+    - vwap_reclaim
+  min_signals_required: 2
+
+  gap_and_go:
+    min_gap_pct: 0.02
+    min_rel_volume: 2.0
+    volume_lookback_days: 20
+
+  mean_reversion:
+    vwap_window: 20
+    std_dev_threshold: 2.5
+    rsi_window: 14
+    rsi_oversold: 30
+    rsi_overbought: 70
+
+  vwap_reclaim:
+    volume_confirmation_mult: 1.5    # current bar vol vs 20-bar avg
+
+  liquidity:
+    min_adv_shares: 1000000
+    max_spread_pct: 0.001
+    min_price: 5.0
+
+sentiment:
+  backend: stub            # stub | finbert
+  qualify_threshold: 0.7
+  qualify_min_independent_sources: 3
+  qualify_max_newest_age_hours: 4
+  decay_breakpoints_hours: [1, 4, 24]
+  # Only trusted financial-news sources. Social media intentionally excluded.
+  tier_weights:
+    tier1: 1.0
+    tier2: 0.5
+  source_tiers:
+    # Tier 1 — primary wire services, exchange filings, direct company disclosures
+    reuters: tier1
+    bloomberg: tier1
+    wsj: tier1
+    ft: tier1
+    sec_edgar: tier1
+    company_pr: tier1
+    # Tier 2 — financial press
+    benzinga: tier2
+    seeking_alpha: tier2
+    cnbc: tier2
+    marketwatch: tier2
+    yahoo_finance: tier2
+    barrons: tier2
+    motley_fool: tier2
+    zacks: tier2
+    # Not tiered (weight 0) — aggregators / low-signal commentary / uncategorized:
+    #   chartmill, investorplace, finnhub, newsapi
+    # Articles from these are cached for audit but don't contribute to sentiment score.
+  news_sources:
+    enabled:
+      - finnhub              # paid-API key via Keychain; real-time, symbol-scoped
+      - newsapi              # paid-API key via Keychain; note: FREE TIER HAS 24h DELAY
+      - sec_edgar            # free, official (8-K / 10-Q / 10-K filings)
+      - yahoo_finance        # free, via yfinance.Ticker(X).news (syndicates Reuters/AP/Benzinga)
+      - cnbc_rss             # free, working
+      - cnbc_markets_rss     # free, working
+      - marketwatch_rss      # free, working (via Dow Jones)
+      - yahoo_rss            # free, working
+      # Reuters RSS deliberately omitted — feeds.reuters.com was shut down in 2020.
+    refresh_interval_sec: 900    # 15 min
+    edgar_user_agent: "Sentinel aqeel@reliablecloudllc.com"
+
+risk:
+  risk_per_trade_pct: 0.005
+  max_concurrent_positions: 5
+  max_per_position_pct: 0.25
+  max_deployed_pct: 0.40
+  daily_loss_limit_pct: 0.02
+  weekly_loss_limit_pct: 0.05
+  rolling_window_sessions: 5
+  max_correlation: 0.80
+  correlation_lookback_days: 30
+  consecutive_loss_halt: 3
+  order_rate_window_sec: 300
+  order_rate_max: 20
+  pdt_min_equity: 25000
+  pdt_max_day_trades: 3
+  pdt_window_business_days: 5
+  price_sanity_band_pct: 0.02
+
+virtual_broker:
+  # How the virtual broker models fills when the user adds a position.
+  fill_mode: last_quote          # last_quote | next_open
+  slippage_bps: 2                # 0.02% — cheap-spread assumption for liquid names
+  commission_per_share: 0.0      # free at most retail brokers for equities
+
+exit:
+  trailing_stop_activate_pct: 0.015
+  trailing_stop_pct: 0.0075
+  hard_stop_pct: 0.010
+  hard_stop_atr_mult: 1.5
+  soft_exit_time: "15:45"
+  moc_submission_time: "15:50"
+  hard_liquidation_time: "15:55"
+  daily_profit_target_pct: 0.02
+  # Per-position profit take: close immediately when unrealized pnl_pct crosses this.
+  # 5% default — large enough to avoid transaction-cost chop on small moves,
+  # small enough to lock in winners before they fade. Tune after 30 days of data.
+  profit_take_pct: 0.05
+  profit_take_enabled: true
+  # Per-position hard-stop backstop (same as hard_stop_pct but enforced
+  # inside VirtualBroker's auto-exit loop in Phase 1, since we have no
+  # native broker stop to rely on).
+  auto_stop_enabled: true
+
+dashboard:
+  title: "Sentinel"
+  refresh_interval_sec: 30
+  show_debug: false
