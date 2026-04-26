@@ -91,3 +91,35 @@ def test_normal_intent_approved(cfg, tmp_db: Path) -> None:
     assert d.approved is True
     assert d.quantity > 0
     assert d.client_order_id != ""
+
+
+def test_earnings_blackout_blocks_within_window(cfg, tmp_db: Path) -> None:
+    """Earnings ~21h after the test clock should hit the 48h blackout."""
+    from datetime import timedelta as _td
+    from sentinel.storage.repos import catalysts
+    rm = _rm(cfg, tmp_db)
+    # _rm uses FixedClock at 2026-04-23 14:00 UTC (= 10am ET).
+    test_clock_date = datetime(2026, 4, 23, tzinfo=timezone.utc).date()
+    catalysts.upsert_many(tmp_db, [{
+        "symbol": "AAPL", "catalyst_type": "earnings",
+        "event_date": test_clock_date + _td(days=1),  # Apr 24 @ 7am ET = ~21h away
+        "event_time": "bmo", "title": "AAPL earnings", "payload": {},
+    }])
+    d = rm.evaluate(_intent(), _eq())
+    assert d.approved is False
+    assert d.gate == Gate.EARNINGS_BLACKOUT
+
+
+def test_earnings_blackout_allows_outside_window(cfg, tmp_db: Path) -> None:
+    """Earnings 10+ days from the test clock should NOT be blocked."""
+    from datetime import timedelta as _td
+    from sentinel.storage.repos import catalysts
+    rm = _rm(cfg, tmp_db)
+    test_clock_date = datetime(2026, 4, 23, tzinfo=timezone.utc).date()
+    catalysts.upsert_many(tmp_db, [{
+        "symbol": "AAPL", "catalyst_type": "earnings",
+        "event_date": test_clock_date + _td(days=10),
+        "event_time": "amc", "title": "AAPL earnings (later)", "payload": {},
+    }])
+    d = rm.evaluate(_intent(), _eq())
+    assert d.approved is True

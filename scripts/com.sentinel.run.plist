@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Sentinel always-on supervisor for macOS.
+
+  Install: copy to ~/Library/LaunchAgents/ and load with launchctl.
+  See scripts/install-launchd.sh for the one-liner installer.
+
+  Behavior:
+    * RunAtLoad=true     → starts on login (and immediately on `launchctl load`)
+    * KeepAlive=true     → restarts automatically if the process crashes
+    * stdout / stderr    → logs/launchd-stdout.log + logs/launchd-stderr.log
+    * Throttle=30s       → don't restart faster than every 30s (prevents spin loops)
+
+  Stop temporarily:  launchctl unload ~/Library/LaunchAgents/com.sentinel.run.plist
+  Permanently:       same + delete the plist file
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sentinel.run</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/aqeelbutt/Downloads/NEW/sentinel/.venv/bin/sentinel</string>
+        <string>run</string>
+        <string>--interval</string>
+        <string>5m</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/aqeelbutt/Downloads/NEW/sentinel</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/aqeelbutt/Downloads/NEW/sentinel/logs/launchd-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/aqeelbutt/Downloads/NEW/sentinel/logs/launchd-stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

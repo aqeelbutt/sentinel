@@ -117,6 +117,27 @@ CREATE TABLE IF NOT EXISTS equity_snapshots (
     spy_close TEXT
 );
 
+CREATE TABLE IF NOT EXISTS ai_recommendations (
+    id TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    thesis TEXT NOT NULL,
+    catalysts_cited TEXT,           -- JSON array
+    conviction TEXT NOT NULL,       -- low | medium | high
+    risk_factors TEXT,              -- JSON array
+    time_horizon TEXT NOT NULL,     -- intraday | swing | position
+    inputs_used TEXT NOT NULL,      -- JSON array of data points the model cited
+    inputs_hash TEXT NOT NULL,      -- sha256 of the snapshot fed in (dedupe + audit)
+    model TEXT NOT NULL,            -- model id, e.g. claude-sonnet-4-6
+    cost_usd REAL,                  -- best-effort token cost
+    raw_response TEXT,              -- full model output for audit
+    created_at TEXT NOT NULL,
+    acted_on INTEGER DEFAULT 0,     -- 1 if user added to portfolio
+    related_position_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ai_created ON ai_recommendations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_symbol ON ai_recommendations(symbol);
+CREATE INDEX IF NOT EXISTS idx_ai_inputs_hash ON ai_recommendations(inputs_hash);
+
 CREATE TABLE IF NOT EXISTS catalysts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL,

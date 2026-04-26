@@ -470,6 +470,36 @@ def watch_remove(symbol: str) -> None:
     rprint(f"[green]Removed[/green]: {symbol.upper()}")
 
 
+# ---------- AI Analyst ----------
+
+@app.command(name="ai-scan")
+def ai_scan(
+    model: str = typer.Option("claude-sonnet-4-6", help="Model id; sonnet=default, opus=higher quality"),
+    max_recs: int = typer.Option(5, help="Max recommendations to return"),
+) -> None:
+    """Run the Claude AI Analyst against the current market snapshot.
+
+    Builds a structured snapshot (movers/regime/catalysts/headlines/portfolio),
+    calls Claude, parses + persists recommendations. Idempotent within 5min —
+    same snapshot returns cached recs (no extra API spend)."""
+    cfg, _, _, _ = _bootstrap()
+    from sentinel.intelligence.claude_analyst import AIAnalystError, run_analyst
+    try:
+        recs = run_analyst(cfg, cfg.storage.db_path, model=model, max_recs=max_recs)
+    except AIAnalystError as e:
+        rprint(f"[red]AI analyst failed[/red]: {e}")
+        raise typer.Exit(1)
+    rprint(f"[green]AI analyst done[/green]: {len(recs)} recommendations")
+    for r in recs:
+        emoji = {"high": "🟢", "medium": "🟡", "low": "🔵"}.get(r.conviction, "⚪")
+        rprint(f"  {emoji} [bold]{r.symbol}[/bold]  conviction={r.conviction}  horizon={r.time_horizon}")
+        rprint(f"    {r.thesis}")
+        if r.catalysts_cited:
+            rprint(f"    [dim]catalysts: {', '.join(r.catalysts_cited)}[/dim]")
+        if r.cost_usd:
+            rprint(f"    [dim]cost: ${r.cost_usd:.4f}[/dim]")
+
+
 # ---------- catalysts subcommands ----------
 
 @catalysts_app.command("refresh")

@@ -233,20 +233,58 @@ def _render_empty_state_diagnostic(cfg) -> None:
         elif payload.get("fired"):
             fired_per_symbol[sym].append(payload.get("name", "?"))
 
-    # 4. Build per-symbol summary
+    # 4. Build per-symbol summary — including last close + daily/weekly change
+    from sentinel.data.market import bar_store as _bar_store
     summary_rows = []
     for s in syms:
+        # Status (signal/liquidity)
         if s in rejected_per_symbol:
-            summary_rows.append({"Symbol": s, "Status": "🚫 liquidity", "Detail": rejected_per_symbol[s]})
+            status = "🚫 liquidity"
+            detail = rejected_per_symbol[s]
         else:
             fired = fired_per_symbol.get(s, [])
             need = cfg.signals.min_signals_required
             if len(fired) >= need:
-                summary_rows.append({"Symbol": s, "Status": "🟡 not picked", "Detail": f"signals fired: {','.join(fired)} (something else blocked)"})
+                status = "🟡 not picked"
+                detail = f"signals fired: {','.join(fired)} (something else blocked)"
             elif len(fired) > 0:
-                summary_rows.append({"Symbol": s, "Status": f"🟠 only {len(fired)}/{need}", "Detail": f"fired: {','.join(fired)}"})
+                status = f"🟠 only {len(fired)}/{need}"
+                detail = f"fired: {','.join(fired)}"
             else:
-                summary_rows.append({"Symbol": s, "Status": "⚪ no signals", "Detail": "—"})
+                status = "⚪ no signals"
+                detail = "—"
+
+        # Price columns
+        bars = _bar_store.get_bars(cfg.storage.db_path, s, "1d", days=10)
+        if len(bars) >= 6:
+            last = float(bars[-1].close)
+            prev = float(bars[-2].close)
+            wk = float(bars[-6].close)
+            d_pct = (last - prev) / prev * 100 if prev > 0 else 0.0
+            w_pct = (last - wk) / wk * 100 if wk > 0 else 0.0
+            d_arrow = "🟢" if d_pct > 0 else ("🔴" if d_pct < 0 else "⚪")
+            last_str = f"${last:,.2f}"
+            d_str = f"{d_arrow} {d_pct:+.2f}%"
+            w_str = f"{w_pct:+.2f}%"
+        elif len(bars) >= 2:
+            last = float(bars[-1].close)
+            prev = float(bars[-2].close)
+            d_pct = (last - prev) / prev * 100 if prev > 0 else 0.0
+            d_arrow = "🟢" if d_pct > 0 else ("🔴" if d_pct < 0 else "⚪")
+            last_str = f"${last:,.2f}"
+            d_str = f"{d_arrow} {d_pct:+.2f}%"
+            w_str = "—"
+        else:
+            last_str = d_str = w_str = "—"
+
+        summary_rows.append({
+            "Symbol": s,
+            "Last": last_str,
+            "Daily": d_str,
+            "Weekly": w_str,
+            "Status": status,
+            "Detail": detail,
+        })
 
     with st.container(border=True):
         st.markdown(f"**Last scan: {most_recent_ts[:19].replace('T', ' ')} UTC**")
@@ -258,7 +296,11 @@ def _render_empty_state_diagnostic(cfg) -> None:
     if summary_rows:
         st.markdown("#### Per-symbol breakdown from the last scan")
         import pandas as pd
-        df = pd.DataFrame(summary_rows).sort_values("Status")
+        # Sort: liquidity-blocked at top, then almost-fired, then no-signals; ties broken by symbol
+        sort_key = {"🚫 liquidity": 0, "🟡 not picked": 1, "🟠": 2, "⚪ no signals": 3}
+        df = pd.DataFrame(summary_rows)
+        df["_k"] = df["Status"].apply(lambda s: next((v for k, v in sort_key.items() if s.startswith(k)), 9))
+        df = df.sort_values(["_k", "Symbol"]).drop(columns=["_k"])
         st.dataframe(df, hide_index=True, width="stretch")
 
     # 5. Concrete suggestions

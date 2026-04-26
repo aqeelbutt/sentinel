@@ -77,13 +77,17 @@ def next_event_for(
     symbol: str,
     catalyst_type: str = "earnings",
     horizon_days: int = 14,
+    *,
+    now: datetime | None = None,
 ) -> datetime | None:
     """Return the next catalyst datetime for `symbol` within `horizon_days`,
-    or None. Maps event_time string ('bmo' | 'amc' | NULL) to an approximate
-    ET datetime so the blackout window math works.
+    or None. `now` defaults to wall-clock; pass an explicit datetime in tests
+    so a fixed/virtual clock works correctly. Maps event_time string
+    ('bmo' | 'amc' | NULL) to an approximate ET datetime.
     """
-    today = date.today().isoformat()
-    end = (date.today() + timedelta(days=horizon_days)).isoformat()
+    base = (now.date() if now is not None else date.today())
+    today = base.isoformat()
+    end = (base + timedelta(days=horizon_days)).isoformat()
     with connect(db_path) as conn:
         row = conn.execute(
             "SELECT event_date, event_time FROM catalysts "

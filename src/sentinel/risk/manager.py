@@ -128,7 +128,7 @@ class RiskManager:
         # in the cases where the market structurally guarantees a violent move.
         if self.cfg.risk.earnings_blackout_enabled:
             from sentinel.storage.repos import catalysts as _cat
-            next_earn = _cat.next_event_for(self.db_path, intent.symbol, "earnings")
+            next_earn = _cat.next_event_for(self.db_path, intent.symbol, "earnings", now=now)
             if next_earn is not None:
                 hours_until = (next_earn - now).total_seconds() / 3600
                 if 0 < hours_until <= self.cfg.risk.earnings_blackout_hours:

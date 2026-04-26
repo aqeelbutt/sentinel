@@ -7,6 +7,74 @@ without strict version numbers — this is a single-user research repo.
 
 ---
 
+## [Unreleased] — 2026-04-25 — AI Analyst + always-on launchd
+
+### Added
+- **🧠 Claude AI Analyst integration** (`sentinel/intelligence/`):
+  - `snapshot.py` — assembles structured market snapshot for Claude (top movers,
+    regime, catalysts next 7d, headlines per mover, portfolio state)
+  - `claude_analyst.py` — Anthropic SDK wrapper with strict JSON-output system
+    prompt, tolerant parser, **idempotent within 5min** on identical snapshots
+    (no spend on repeat clicks)
+  - `types.py` — `AIRecommendation` dataclass with thesis, conviction, catalysts
+    cited, risk factors, **inputs lineage**, cost
+- **AI Analyst dashboard panel** — card per recommendation with thesis,
+  conviction emoji, catalysts, risk factors, full data lineage, raw model
+  response, and Add-to-Portfolio button (passes the same RiskManager gates).
+- **`sentinel ai-scan` CLI** + 🧠 AI scan button in Quick Actions sidebar.
+- **`ai_recommendations` SQLite table** with idempotency hash.
+- **Anthropic API key** via Keychain (`sentinel keychain set anthropic`) with
+  `ANTHROPIC_API_KEY` env-var fallback.
+- **Always-on supervisor via macOS launchd**:
+  - `scripts/com.sentinel.run.plist` — KeepAlive + RunAtLoad
+  - `scripts/install-launchd.sh` — install / uninstall / status / logs
+  - Runs `sentinel run --interval 5m` continuously, restarts on crash, starts
+    at every login. Logs to `logs/launchd-stdout.log`.
+- **ET time clock on sidebar** — visible current Eastern Time so the user
+  always sees market-local time.
+
+### Changed
+- `catalysts.next_event_for()` accepts a `now=` kwarg for fixed-clock testing.
+- Default AI model: `claude-sonnet-4-6`. Switchable via `--model` CLI flag.
+
+### ET convention (made explicit)
+- **Internal storage**: UTC ISO8601 strings (avoids DST chaos in DB).
+- **All UI display**: converted to America/New_York via `fmt_ts` helper.
+- **MarketClock.now()**: returns ET-tz datetime; all `is_market_open` and exit-
+  window math runs against ET. Already in place since v0.1; now also surfaced
+  in the dashboard sidebar.
+
+### Cost note
+Sonnet ~$0.005-0.020 per AI scan, Opus ~$0.020-0.080. Recommend running AI
+scans on demand (Quick Actions button) rather than every 5min `sentinel run`
+cycle, unless you want continuous narrative.
+
+---
+
+## [Unreleased] — 2026-04-24 (evening) — Phase A: Catalyst Calendar
+
+### Added
+- **Catalyst calendar** (`sentinel/data/catalysts.py` + `storage/repos/catalysts.py`).
+  Pulls earnings + IPO + macro events from Finnhub `/calendar/earnings` and
+  `/calendar/ipo` (one HTTP request covers a date range across all symbols).
+  Falls back to the static FOMC/CPI/NFP calendar when no Finnhub key is set.
+- **EARNINGS_BLACKOUT risk gate** in `RiskManager`. Refuses new entries within
+  `risk.earnings_blackout_hours` (default 48h) of a symbol's next scheduled
+  earnings — earnings are binary risk and account for a large share of unforced
+  day-trader losses.
+- **Catalyst Calendar dashboard panel** — 7-day view grouped by date,
+  color-coded by proximity, flags symbols already in open positions.
+- **`sentinel catalysts refresh / list` CLI commands**.
+- **Quick Actions sidebar card** — one-click access to Run scan · Refresh catalysts ·
+  Sweep positions · Add to watchlist. Reduces friction for routine ops.
+- 2 new unit tests for EARNINGS_BLACKOUT (35 tests total).
+
+### Changed
+- New `Gate.EARNINGS_BLACKOUT` slotted between `PRICE_SANITY` and `CORRELATION`.
+- New schema table `catalysts` with unique index on (symbol, type, date); auto-migrated.
+
+---
+
 ## [Unreleased] — 2026-04-24 (afternoon)
 
 ### Added

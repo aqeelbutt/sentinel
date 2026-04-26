@@ -31,6 +31,7 @@ SERVICE = "sentinel"
 _ENV_FALLBACKS = {
     "newsapi": "NEWSAPI_KEY",
     "finnhub": "FINNHUB_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
     "alpaca_key_id": "ALPACA_KEY_ID",        # reserved — Phase 2, no fallback in live mode
     "alpaca_secret":  "ALPACA_SECRET_KEY",   # reserved — Phase 2
 }

@@ -1,0 +1,109 @@
+# =====================================================================
+#  Sentinel .gitignore
+#  Anything not listed here IS committed. Anything matching a pattern
+#  here is NOT — including local DBs, logs, secrets, and venvs.
+# =====================================================================
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+develop-eggs/
+parts/
+var/
+sdist/
+MANIFEST
+pip-wheel-metadata/
+share/python-wheels/
+
+# ----- Virtual environments -----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ----- uv -----
+.uv/
+uv.lock              # comment out this line if you want to commit the lockfile
+
+# ----- Test / lint caches -----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.cache/
+
+# ----- Sentinel runtime data (NEVER commit; contains trade history + cached bars) -----
+data/
+data/sentinel.db
+data/sentinel.db-*       # WAL / SHM sidecars
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ----- Logs (rotated daily; can grow) -----
+logs/
+*.log
+*.jsonl
+launchd-stdout.log
+launchd-stderr.log
+
+# ----- Backtest run artifacts (regenerable; large) -----
+backtests/runs/
+
+# ----- Local config overrides -----
+.env
+.env.local
+.env.*.local
+config/local.yaml
+config/live.yaml
+.streamlit/secrets.toml
+
+# ----- Editors / IDEs -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+*~
+
+# ----- macOS -----
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ----- Linux -----
+.directory
+.Trash-*
+
+# ----- Windows -----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ----- Jupyter / notebooks (if you ever experiment) -----
+.ipynb_checkpoints/
+*.ipynb
+
+# ----- Misc -----
+*.pid
+*.seed
+*.tar.gz
+*.zip
+node_modules/        # in case anyone adds a JS tool later
